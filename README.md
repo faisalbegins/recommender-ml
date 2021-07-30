@@ -7,3 +7,4 @@
 * conda install -c conda-forge matplotlib
 * conda install -c conda-forge scikit-surprise
 * conda install -c conda-forge flask
+* conda install -c conda flask-caching
