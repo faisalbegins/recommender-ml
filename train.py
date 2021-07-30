@@ -53,10 +53,63 @@ def prepare_data():
     # find top movies based on popularity
     popular_movies = df.copy().sort_values('popularity', ascending=False)
 
+    content_based_movies = df.copy()
+
+    from ast import literal_eval
+    features = ['cast', 'crew', 'keywords', 'genres']
+    for feature in features:
+        content_based_movies[feature] = content_based_movies[feature].apply(literal_eval)
+
+    def get_director(x):
+        for i in x:
+            if i['job'] == 'Director':
+                return i['name']
+        return np.nan
+
+    # Returns the list top 3 elements or entire list; whichever is more.
+    def get_list(x):
+        if isinstance(x, list):
+            names = [i['name'] for i in x]
+            # Check if more than 3 elements exist. If yes, return only first three. If no, return entire list.
+            if len(names) > 3:
+                names = names[:3]
+            return names
+        # Return empty list in case of missing/malformed data
+        return []
+
+    content_based_movies['director'] = content_based_movies['crew'].apply(get_director)
+
+    features = ['cast', 'keywords', 'genres']
+    for feature in features:
+        content_based_movies[feature] = content_based_movies[feature].apply(get_list)
+
+    # clean data
+    def clean_data(x):
+        if isinstance(x, list):
+            return [str.lower(i.replace(" ", "")) for i in x]
+        else:
+            # Check if director exists. If not, return empty string
+            if isinstance(x, str):
+                return str.lower(x.replace(" ", ""))
+            else:
+                return ''
+
+    # clean data
+    for feature in ['cast', 'director', 'keywords', 'genres']:
+        content_based_movies[feature] = content_based_movies[feature].apply(clean_data)
+
+    def create_soup(x):
+        return ' '.join(x['keywords']) + ' ' + ' '.join(x['cast']) + ' ' + x['director'] + ' ' + ' '.join(
+            x['genres']) + ' ' + x['overview']
+
+    content_based_movies['soup'] = content_based_movies.apply(create_soup, axis=1)
+
+    # export all the models
     models = [
         (trending_movies, '/Users/Faisal/Development/recommender-storage/models/trending.model'),
         (popular_movies, '/Users/Faisal/Development/recommender-storage/models/popular.model'),
-        (df, '/Users/Faisal/Development/recommender-storage/models/generic.model')
+        (df, '/Users/Faisal/Development/recommender-storage/models/generic.model'),
+        (content_based_movies, '/Users/Faisal/Development/recommender-storage/models/vectorizer.model')
     ]
 
     return models
