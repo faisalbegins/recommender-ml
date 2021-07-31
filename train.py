@@ -104,12 +104,22 @@ def prepare_data():
 
     content_based_movies['soup'] = content_based_movies.apply(create_soup, axis=1)
 
+    # Import CountVectorizer and create the count matrix
+    from sklearn.feature_extraction.text import CountVectorizer
+    count = CountVectorizer(stop_words='english')
+    count_matrix = count.fit_transform(content_based_movies['soup'])
+
+    # Compute the Cosine Similarity matrix based on the count_matrix
+    from sklearn.metrics.pairwise import cosine_similarity
+    cosine_similarity_matrix = cosine_similarity(count_matrix, count_matrix)
+
     # export all the models
     models = [
-        (trending_movies, '/Users/Faisal/Development/recommender-storage/models/trending.model'),
-        (popular_movies, '/Users/Faisal/Development/recommender-storage/models/popular.model'),
-        (df, '/Users/Faisal/Development/recommender-storage/models/generic.model'),
-        (content_based_movies, '/Users/Faisal/Development/recommender-storage/models/vectorizer.model')
+        (trending_movies, '/Users/Faisal/Development/recommender-storage/models/trending.data'),
+        (popular_movies, '/Users/Faisal/Development/recommender-storage/models/popular.data'),
+        (df, '/Users/Faisal/Development/recommender-storage/models/generic.data'),
+        (content_based_movies, '/Users/Faisal/Development/recommender-storage/models/content_based.data'),
+        (cosine_similarity_matrix, '/Users/Faisal/Development/recommender-storage/models/similarity.matrix')
     ]
 
     return models
