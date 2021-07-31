@@ -113,13 +113,50 @@ def prepare_data():
     from sklearn.metrics.pairwise import cosine_similarity
     cosine_similarity_matrix = cosine_similarity(count_matrix, count_matrix)
 
+
+    # SVD
+
+    # imports
+    from surprise import Reader, Dataset, SVD
+    from surprise.model_selection import cross_validate
+
+    # read data file
+    ratings = pd.read_csv('/Users/Faisal/Development/recommender-storage/data/user_ratings.csv')
+
+    # load data
+    data = Dataset.load_from_df(ratings[['userId', 'movieId', 'rating']], Reader())
+
+    # create svd
+    svd = SVD()
+
+    # cross validation
+    cross_validate(svd, data, measures=['RMSE', 'MAE'], cv=5, verbose=True)
+
+    # fit data
+    trainset = data.build_full_trainset()
+    svd.fit(trainset)
+
+    movies_for_prediction = df[['id', 'title']]
+    all_users = ratings['userId'].unique()
+    predicted_movies_with_rating = []
+
+    for user in all_users[0:100]:
+        for movie in movies_for_prediction.values[0:20]:
+            users_ratings = ratings[(ratings['userId'] == user) & (ratings['movieId'] == movie[0])]
+            if len(users_ratings.index) == 0:
+                predicted_movies_with_rating.append([user, movie[0], movie[1], svd.predict(user, movie[0]).est])
+
+    svd_lookup = pd.DataFrame(predicted_movies_with_rating)
+    svd_lookup.columns = ['user', 'movie', 'title', 'prediction']
+
     # export all the models
     models = [
         (trending_movies, '/Users/Faisal/Development/recommender-storage/models/trending.data'),
         (popular_movies, '/Users/Faisal/Development/recommender-storage/models/popular.data'),
         (df, '/Users/Faisal/Development/recommender-storage/models/generic.data'),
         (content_based_movies, '/Users/Faisal/Development/recommender-storage/models/content_based.data'),
-        (cosine_similarity_matrix, '/Users/Faisal/Development/recommender-storage/models/similarity.matrix')
+        (cosine_similarity_matrix, '/Users/Faisal/Development/recommender-storage/models/similarity.matrix'),
+        (svd_lookup, '/Users/Faisal/Development/recommender-storage/models/svd_lookup.data')
     ]
 
     return models
