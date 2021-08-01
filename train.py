@@ -156,6 +156,7 @@ def prepare_data():
         (df, '/Users/Faisal/Development/recommender-storage/models/generic.data'),
         (content_based_movies, '/Users/Faisal/Development/recommender-storage/models/content_based.data'),
         (cosine_similarity_matrix, '/Users/Faisal/Development/recommender-storage/models/similarity.matrix'),
+        (svd, '/Users/Faisal/Development/recommender-storage/models/svd_raw.model'),
         (svd_lookup, '/Users/Faisal/Development/recommender-storage/models/svd_lookup.data')
     ]
 
