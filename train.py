@@ -9,7 +9,7 @@ def prepare_data():
     movies_df = pd.read_csv('/Users/Faisal/Development/recommender-storage/data/tmdb_movies.csv')
 
     # Join two dataset based on id (movie_id)
-    credits_df.columns = ['id','tittle','cast','crew']
+    credits_df.columns = ['id', 'tittle', 'cast', 'crew']
     df = movies_df.merge(credits_df, on='id')
 
     # drop unnecessary columns
@@ -112,7 +112,6 @@ def prepare_data():
     # Compute the Cosine Similarity matrix based on the count_matrix
     from sklearn.metrics.pairwise import cosine_similarity
     cosine_similarity_matrix = cosine_similarity(count_matrix, count_matrix)
-
 
     # SVD
 
