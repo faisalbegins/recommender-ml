@@ -148,6 +148,103 @@ def prepare_data():
     svd_lookup = pd.DataFrame(predicted_movies_with_rating)
     svd_lookup.columns = ['user', 'movie', 'title', 'prediction']
 
+    # Neural Collaborative Filter
+
+    # load data
+    movie_lens_movies = pd.read_csv('/Users/Faisal/Development/recommender-storage/data/movie_lens_movies.csv')
+    movie_lens_ratings = pd.read_csv('/Users/Faisal/Development/recommender-storage/data/movie_lens_ratings.csv')
+
+    # get user ids and define encoding and decoding mapping
+    user_ids = movie_lens_ratings["userId"].unique().tolist()
+    user2user_encoded = {x: i for i, x in enumerate(user_ids)}
+    userencoded2user = {i: x for i, x in enumerate(user_ids)}
+
+    # get movie ids and define encoding and decoding mapping
+    movie_ids = movie_lens_ratings["movieId"].unique().tolist()
+    movie2movie_encoded = {x: i for i, x in enumerate(movie_ids)}
+    movie_encoded2movie = {i: x for i, x in enumerate(movie_ids)}
+
+    # assign encoded user id and movie id inside the dataframe
+    movie_lens_ratings["user"] = movie_lens_ratings["userId"].map(user2user_encoded)
+    movie_lens_ratings["movie"] = movie_lens_ratings["movieId"].map(movie2movie_encoded)
+
+    # calculate total user and movie count
+    num_users = len(user2user_encoded)
+    num_movies = len(movie_encoded2movie)
+
+    # convert rating field to flot32 from flot64
+    movie_lens_ratings["rating"] = movie_lens_ratings["rating"].values.astype(np.float32)
+
+    # min and max ratings will be used to normalize the ratings later
+    min_rating = min(movie_lens_ratings["rating"])
+    max_rating = max(movie_lens_ratings["rating"])
+
+    movie_lens_ratings = movie_lens_ratings.sample(frac=1, random_state=42)
+    x = movie_lens_ratings[["user", "movie"]].values
+    # Normalize the targets between 0 and 1. Makes it easy to train.
+    y = movie_lens_ratings["rating"].apply(lambda x: (x - min_rating) / (max_rating - min_rating)).values
+
+    train_indices = int(0.9 * df.shape[0])
+    x_train, x_val, y_train, y_val = (
+        x[:train_indices],
+        x[train_indices:],
+        y[:train_indices],
+        y[train_indices:],
+    )
+
+    import tensorflow as tf
+    from tensorflow import keras
+    from tensorflow.keras import layers
+
+    EMBEDDING_SIZE = 50
+
+    class RecommenderNeuralNetwork(keras.Model):
+        def __init__(self, num_users, num_movies, embedding_size, **kwargs):
+            super(RecommenderNeuralNetwork, self).__init__(**kwargs)
+            self.num_users = num_users
+            self.num_movies = num_movies
+            self.embedding_size = embedding_size
+            self.user_embedding = layers.Embedding(
+                num_users,
+                embedding_size,
+                embeddings_initializer="he_normal",
+                embeddings_regularizer=keras.regularizers.l2(1e-6),
+            )
+            self.user_bias = layers.Embedding(num_users, 1)
+            self.movie_embedding = layers.Embedding(
+                num_movies,
+                embedding_size,
+                embeddings_initializer="he_normal",
+                embeddings_regularizer=keras.regularizers.l2(1e-6),
+            )
+            self.movie_bias = layers.Embedding(num_movies, 1)
+
+        def call(self, inputs):
+            user_vector = self.user_embedding(inputs[:, 0])
+            user_bias = self.user_bias(inputs[:, 0])
+            movie_vector = self.movie_embedding(inputs[:, 1])
+            movie_bias = self.movie_bias(inputs[:, 1])
+            dot_user_movie = tf.tensordot(user_vector, movie_vector, 2)
+            # Add all the components (including bias)
+            x = dot_user_movie + user_bias + movie_bias
+            # The sigmoid activation forces the rating to between 0 and 1
+            return tf.nn.sigmoid(x)
+
+    neural_network_model = RecommenderNeuralNetwork(num_users, num_movies, EMBEDDING_SIZE)
+    neural_network_model.compile(loss=tf.keras.losses.BinaryCrossentropy(),optimizer=keras.optimizers.Adam(lr=0.001))
+
+    # train the model
+    history = neural_network_model.fit(
+        x=x_train,
+        y=y_train,
+        batch_size=64,
+        epochs=5,
+        verbose=1,
+        validation_data=(x_val, y_val),
+    )
+
+    tf.keras.models.save_model(neural_network_model, '/Users/Faisal/Development/recommender-storage/models/ncf')
+
     # export all the models
     models = [
         (trending_movies, '/Users/Faisal/Development/recommender-storage/models/trending.data'),
@@ -156,7 +253,12 @@ def prepare_data():
         (content_based_movies, '/Users/Faisal/Development/recommender-storage/models/content_based.data'),
         (cosine_similarity_matrix, '/Users/Faisal/Development/recommender-storage/models/similarity.matrix'),
         (svd, '/Users/Faisal/Development/recommender-storage/models/svd_raw.model'),
-        (svd_lookup, '/Users/Faisal/Development/recommender-storage/models/svd_lookup.data')
+        (svd_lookup, '/Users/Faisal/Development/recommender-storage/models/svd_lookup.data'),
+        (movie_lens_movies, '/Users/Faisal/Development/recommender-storage/models/movie_lens_movies.data'),
+        (movie_lens_ratings, '/Users/Faisal/Development/recommender-storage/models/movie_lens_ratings.data'),
+        (movie2movie_encoded, '/Users/Faisal/Development/recommender-storage/models/movie.encoder'),
+        (movie_encoded2movie, '/Users/Faisal/Development/recommender-storage/models/movie.decoder'),
+        (user2user_encoded, '/Users/Faisal/Development/recommender-storage/models/user.encoder')
     ]
 
     return models
