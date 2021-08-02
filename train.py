@@ -139,8 +139,11 @@ def prepare_data():
     all_users = ratings['userId'].unique()
     predicted_movies_with_rating = []
 
-    for user in all_users[0:10]:
-        for movie in movies_for_prediction.values:
+    import sys
+    user_gen = sys.argv[1] if len(sys.argv) > 1 else 10
+    movie_gen = sys.argv[2] if len(sys.argv) > 2 else len(movies_for_prediction.values) + 1
+    for user in all_users[0:user_gen]:
+        for movie in movies_for_prediction.values[0:movie_gen]:
             users_ratings = ratings[(ratings['userId'] == user) & (ratings['movieId'] == movie[0])]
             if len(users_ratings.index) == 0:
                 predicted_movies_with_rating.append([user, movie[0], movie[1], svd.predict(user, movie[0]).est])
